@@ -1,0 +1,11 @@
+version: 0.1
+
+projects:
+  - path: src/terraform
+    name: src-terraform
+    skip_autodetect: true
+    dependency_paths:
+      - src/terraform/**
+      - src/terraform/backend.tfvars
+      - src/terraform/terraform.tfvars
+    usage_file: src/terraform/infracost-usage.yml

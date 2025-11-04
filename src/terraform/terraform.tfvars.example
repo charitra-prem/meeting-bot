@@ -1,0 +1,6 @@
+aws_profile = "meetingbot"
+aws_region  = "us-east-2"
+domain_name = "app.meetingbot.tech"
+auth_github_id = "GITHUB_ID"
+auth_github_secret = "GITHUB_SECRET"
+github_token = "ghp_xxxxxx"

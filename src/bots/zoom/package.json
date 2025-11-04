@@ -1,0 +1,9 @@
+{
+  "name": "@bots/zoom",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "puppeteer": "24.7.2",
+    "puppeteer-stream": "3.0.20"
+  }
+}

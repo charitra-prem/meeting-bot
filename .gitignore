@@ -1,0 +1,15 @@
+.DS_Store
+.pytest_cache
+venv
+__pycache__
+node_modules/
+*.webm
+*.mp4
+
+.env
+.secrets
+config.json
+envBotData.ts
+
+**/.next/
+/src/bots/screenshot.png

@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    /* Base Options: */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "ES2020",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "checkJs": true,
+
+    /* Bundled projects */
+    "lib": ["dom", "dom.iterable", "ES2022"],
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "jsx": "preserve",
+
+    /* Path Aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@bots/*": ["./*"]
+    },
+
+    /* Tests */
+    "types": ["jest"],
+  },
+  "include": ["src/**/*", "meet/src/**/*", "teams/src/**/*", "zoom/src/**/*"],
+  "exclude": ["node_modules", "../../backend/**/*"]
+}
