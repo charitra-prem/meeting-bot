@@ -413,6 +413,10 @@ export class MeetsBot extends Bot {
     const audioBitrate = "128k";
     const fps = "25";
 
+    // For segmented recording, use directory pattern instead of single file
+    const segmentDir = path.dirname(this.recordingPath);
+    const segmentPattern = path.join(segmentDir, 'segment_%03d.mp4');
+
     return [
       '-v', 'verbose', // Verbose logging for debugging
       "-thread_queue_size", "512", // Increase thread queue size to handle input buffering
@@ -431,7 +435,12 @@ export class MeetsBot extends Bot {
       "-b:a", audioBitrate, // Lower audio bitrate for reduced CPU usage
       "-vsync", "2", // Synchronize video and audio
       "-vf", "scale=1280:720", // Ensure the video is scaled to 720p
-      "-y", this.getRecordingPath(), // Output file path
+      // Segmented output - creates 60-second chunks for mid-meeting access
+      "-f", "segment",
+      "-segment_time", "60", // 60-second segments
+      "-segment_format", "mp4",
+      "-reset_timestamps", "1",
+      "-y", segmentPattern, // Output segment pattern
     ];
   }
 

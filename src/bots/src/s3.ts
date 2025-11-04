@@ -1,7 +1,8 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { readFileSync, promises as fsPromises } from "fs";
+import { readFileSync, promises as fsPromises, watch } from "fs";
 import { Bot } from "./bot";
 import { randomUUID } from "crypto";
+import * as path from "path";
 
 /**
  * Creates an S3 Connection to the bucket.
@@ -115,4 +116,71 @@ export async function uploadRecordingToS3(s3Client: S3Client, bot: Bot): Promise
 
     // No Upload
     return '';
+}
+
+/**
+ * Watch for new recording segments and upload them to S3 as they're created
+ *
+ * @param s3Client - S3 client instance
+ * @param segmentDir - Directory where segments are being written
+ * @param botId - Bot ID for organizing S3 keys
+ * @param onSegmentUploaded - Callback when a segment is uploaded
+ * @returns Cleanup function to stop watching
+ */
+export function watchAndUploadSegments(
+  s3Client: S3Client,
+  segmentDir: string,
+  botId: string,
+  onSegmentUploaded?: (segmentKey: string, segmentNumber: number) => void
+): () => void {
+
+  const uploadedSegments = new Set<string>();
+
+  console.log(`Starting segment watcher for directory: ${segmentDir}`);
+
+  const watcher = watch(segmentDir, async (eventType, filename) => {
+    if (!filename || !filename.endsWith('.mp4')) return;
+    if (uploadedSegments.has(filename)) return;
+
+    const segmentPath = path.join(segmentDir, filename);
+
+    console.log(`New segment detected: ${filename} (event: ${eventType})`);
+
+    // Wait a moment to ensure file is fully written
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    try {
+      // Read segment file
+      const fileContent = readFileSync(segmentPath);
+
+      // Extract segment number from filename (segment_000.mp4 -> 0)
+      const segmentMatch = filename.match(/segment_(\d+)\.mp4/);
+      const segmentNumber = segmentMatch ? parseInt(segmentMatch[1]) : 0;
+
+      // Upload to S3 with predictable path
+      const key = `recordings/${botId}/segment_${segmentNumber.toString().padStart(3, '0')}.mp4`;
+
+      await s3Client.send(new PutObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME!,
+        Key: key,
+        Body: fileContent,
+        ContentType: 'video/mp4',
+      }));
+
+      console.log(`Uploaded segment ${segmentNumber} to S3: ${key}`);
+      uploadedSegments.add(filename);
+
+      // Callback for event reporting
+      onSegmentUploaded?.(key, segmentNumber);
+
+    } catch (error) {
+      console.error(`Error uploading segment ${filename}:`, error);
+    }
+  });
+
+  // Return cleanup function
+  return () => {
+    console.log('Stopping segment watcher');
+    watcher.close();
+  };
 }

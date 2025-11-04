@@ -53,6 +53,7 @@ export enum EventCode {
   PARTICIPANT_JOIN = "PARTICIPANT_JOIN",
   PARTICIPANT_LEAVE = "PARTICIPANT_LEAVE",
   LOG = "LOG",
+  RECORDING_CHUNK_AVAILABLE = "RECORDING_CHUNK_AVAILABLE",
 }
 
 export class WaitingRoomTimeoutError extends Error {

@@ -2,7 +2,8 @@ import { Bot, createBot } from "./bot";
 import dotenv from "dotenv";
 import { startHeartbeat, reportEvent } from "./monitoring";
 import { EventCode, type BotConfig } from "./types";
-import { createS3Client, uploadRecordingToS3 } from "./s3";
+import { createS3Client, uploadRecordingToS3, watchAndUploadSegments } from "./s3";
+import * as path from "path";
 
 dotenv.config({path: '../test.env'}); // Load test.env for testing
 dotenv.config();
@@ -54,6 +55,23 @@ export const main = async () => {
   // Report READY_TO_DEPLOY event
   await reportEvent(botId, EventCode.READY_TO_DEPLOY);
 
+  // Start watching for recording segments (will upload as they're created)
+  const segmentDir = path.dirname(bot.getRecordingPath());
+  const stopWatcher = watchAndUploadSegments(
+    s3Client,
+    segmentDir,
+    botId.toString(),
+    (segmentKey, segmentNumber) => {
+      // Report segment availability via event
+      reportEvent(botId, EventCode.RECORDING_CHUNK_AVAILABLE, {
+        segmentKey,
+        segmentNumber,
+      }).catch(error => {
+        console.error('Error reporting segment event:', error);
+      });
+    }
+  );
+
   try {
     // Run the bot
     await bot.run().catch(async (error) => {
@@ -81,6 +99,9 @@ export const main = async () => {
     await reportEvent(botId, EventCode.FATAL, {
       description: (error as Error).message,
     });
+  } finally {
+    // Ensure watcher is stopped in all cases
+    stopWatcher();
   }
 
   // After S3 upload and cleanup, stop the heartbeat
