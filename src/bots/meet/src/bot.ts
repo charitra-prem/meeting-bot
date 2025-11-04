@@ -611,6 +611,9 @@ export class MeetsBot extends Bot {
     console.log("Starting Recording");
     this.startRecording();
 
+    // Report that we're now in the call and recording
+    await this.onEvent(EventCode.IN_CALL);
+
     console.log("Waiting for the 'Others might see you differently' popup...");
     await this.handleInfoPopup();
 

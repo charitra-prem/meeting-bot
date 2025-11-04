@@ -257,6 +257,9 @@ export class TeamsBot extends Bot {
 
     await this.startRecording();
 
+    // Report that we're now in the call and recording
+    await this.onEvent(EventCode.IN_CALL);
+
     // Then wait for meeting to end by watching for the "Leave" button to disappear
     await this.page.waitForFunction(
       (selector) => !document.querySelector(selector),

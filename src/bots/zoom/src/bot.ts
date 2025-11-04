@@ -245,6 +245,9 @@ export class ZoomBot extends Bot {
     // Start the recording -- again, type issue from importing.
     const stream = await this.startRecording();
 
+    // Report that we're now in the call and recording
+    await this.onEvent(EventCode.IN_CALL);
+
     console.log("Recording...");
 
     // Get the Frame containing the meeting
