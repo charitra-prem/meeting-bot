@@ -139,7 +139,7 @@ export function watchAndUploadSegments(
   console.log(`Starting segment watcher for directory: ${segmentDir}`);
 
   const watcher = watch(segmentDir, async (eventType, filename) => {
-    if (!filename || !filename.endsWith('.mp4')) return;
+    if (!filename || !filename.endsWith('.ts')) return;
     if (uploadedSegments.has(filename)) return;
 
     const segmentPath = path.join(segmentDir, filename);
@@ -153,18 +153,18 @@ export function watchAndUploadSegments(
       // Read segment file
       const fileContent = readFileSync(segmentPath);
 
-      // Extract segment number from filename (segment_000.mp4 -> 0)
-      const segmentMatch = filename.match(/segment_(\d+)\.mp4/);
+      // Extract segment number from filename (segment_000.ts -> 0)
+      const segmentMatch = filename.match(/segment_(\d+)\.ts/);
       const segmentNumber = segmentMatch ? parseInt(segmentMatch[1]) : 0;
 
       // Upload to S3 with predictable path
-      const key = `recordings/${botId}/segment_${segmentNumber.toString().padStart(3, '0')}.mp4`;
+      const key = `recordings/${botId}/segment_${segmentNumber.toString().padStart(3, '0')}.ts`;
 
       await s3Client.send(new PutObjectCommand({
         Bucket: process.env.AWS_BUCKET_NAME!,
         Key: key,
         Body: fileContent,
-        ContentType: 'video/mp4',
+        ContentType: 'video/mp2t', // MPEGTS MIME type
       }));
 
       console.log(`Uploaded segment ${segmentNumber} to S3: ${key}`);

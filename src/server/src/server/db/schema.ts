@@ -205,6 +205,7 @@ const allEventCodes = [
   "PARTICIPANT_JOIN",
   "PARTICIPANT_LEAVE",
   "LOG",
+  "RECORDING_CHUNK_AVAILABLE",
 ] as const;
 
 // Define descriptions for all event types
@@ -227,6 +228,8 @@ export const EVENT_DESCRIPTIONS = {
   FATAL:
     "The bot has encountered an error. The data.sub_code and data.description will contain the reason for the failure.",
   LOG: "Catch-all for any logs that were produced that don't fit any other event type. The data.message will contain the log contents.",
+  RECORDING_CHUNK_AVAILABLE:
+    "A recording segment has been uploaded to S3. The data.segmentKey and data.segmentNumber contain the S3 key and segment number.",
 } as const;
 
 // Define event codes with descriptions
@@ -329,12 +332,17 @@ const statusData = z.object({
   sub_code: z.string().optional(),
   description: z.string().optional(),
 });
+const recordingChunkData = z.object({
+  segmentKey: z.string(),
+  segmentNumber: z.number(),
+});
 
 export const eventData = z.union([
   participantJoinData,
   participantLeaveData,
   logData,
   statusData,
+  recordingChunkData,
 ]);
 export type EventData = z.infer<typeof eventData>;
 

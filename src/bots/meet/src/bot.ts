@@ -413,9 +413,9 @@ export class MeetsBot extends Bot {
     const audioBitrate = "128k";
     const fps = "25";
 
-    // For segmented recording, use directory pattern instead of single file
+    // For segmented recording, use MPEGTS format with Opus audio (streaming-friendly)
     const segmentDir = path.dirname(this.recordingPath);
-    const segmentPattern = path.join(segmentDir, 'segment_%03d.mp4');
+    const segmentPattern = path.join(segmentDir, 'segment_%03d.ts');
 
     return [
       '-v', 'verbose', // Verbose logging for debugging
@@ -431,16 +431,16 @@ export class MeetsBot extends Bot {
       "-pix_fmt", "yuv420p", // Ensures compatibility with most browsers
       "-preset", "veryfast", // Use a faster preset to reduce CPU usage
       "-crf", "28", // Increase CRF for reduced CPU usage
-      "-c:a", "aac", // AAC codec for audio compatibility
-      "-b:a", audioBitrate, // Lower audio bitrate for reduced CPU usage
+      "-c:a", "libopus", // Opus codec for efficient audio
+      "-b:a", "64k", // Opus is efficient, 64k is good quality
       "-vsync", "2", // Synchronize video and audio
       "-vf", "scale=1280:720", // Ensure the video is scaled to 720p
       // Segmented output - creates 60-second chunks for mid-meeting access
       "-f", "segment",
       "-segment_time", "60", // 60-second segments
-      "-segment_format", "mp4",
+      "-segment_format", "mpegts", // Use MPEGTS format (supports live segmentation with Opus)
       "-reset_timestamps", "1",
-      "-y", segmentPattern, // Output segment pattern
+      "-y", segmentPattern, // Output segment pattern (*.ts files)
     ];
   }
 
