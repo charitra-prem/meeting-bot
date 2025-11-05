@@ -440,8 +440,8 @@ export class MeetsBot extends Bot {
       // Segmented output - creates 60-second chunks for mid-meeting access
       "-f", "segment",
       "-segment_time", "60", // 60-second segments
-      "-segment_format", "mp4", // MP4 format with proper finalization
-      "-segment_format_options", "movflags=+frag_keyframe+empty_moov+default_base_moof", // Fragmented MP4 for live streaming
+      "-segment_format", "mp4", // MP4 format
+      "-segment_format_options", "movflags=+faststart", // Write moov atom at start for streaming
       "-reset_timestamps", "1",
       "-y", segmentPattern, // Output segment pattern (*.mp4 files)
     ];
