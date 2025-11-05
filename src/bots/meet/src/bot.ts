@@ -413,10 +413,11 @@ export class MeetsBot extends Bot {
     const audioBitrate = "128k";
     const fps = "25";
 
-    // For segmented recording, use Matroska format with Opus audio
-    // Matroska (mkv) supports Opus codec and live segmentation
+    // For segmented recording, use fragmented MP4 format
+    // Matroska doesn't properly finalize segments in live mode (causes 0-byte files)
+    // Fragmented MP4 is designed for live streaming and properly writes segments
     const segmentDir = path.dirname(this.recordingPath);
-    const segmentPattern = path.join(segmentDir, 'segment_%03d.mkv');
+    const segmentPattern = path.join(segmentDir, 'segment_%03d.mp4');
 
     return [
       '-v', 'verbose', // Verbose logging for debugging
@@ -432,16 +433,17 @@ export class MeetsBot extends Bot {
       "-pix_fmt", "yuv420p", // Ensures compatibility with most browsers
       "-preset", "veryfast", // Use a faster preset to reduce CPU usage
       "-crf", "28", // Increase CRF for reduced CPU usage
-      "-c:a", "libopus", // Opus codec for efficient audio
-      "-b:a", "64k", // Opus is efficient, 64k is good quality
+      "-c:a", "aac", // AAC codec (required for MP4)
+      "-b:a", "128k", // Good quality audio
       "-vsync", "2", // Synchronize video and audio
       "-vf", "scale=1280:720", // Ensure the video is scaled to 720p
       // Segmented output - creates 60-second chunks for mid-meeting access
       "-f", "segment",
       "-segment_time", "60", // 60-second segments
-      "-segment_format", "matroska", // Use Matroska format (supports live segmentation with Opus)
+      "-segment_format", "mp4", // MP4 format with proper finalization
+      "-segment_format_options", "movflags=+frag_keyframe+empty_moov+default_base_moof", // Fragmented MP4 for live streaming
       "-reset_timestamps", "1",
-      "-y", segmentPattern, // Output segment pattern (*.mkv files)
+      "-y", segmentPattern, // Output segment pattern (*.mp4 files)
     ];
   }
 
