@@ -325,6 +325,10 @@ resource "aws_ecs_task_definition" "meet_bot" {
         {
           name  = "NODE_ENV"
           value = "production"
+        },
+        {
+          name  = "MEET_FFMPEG_STDERR_ECHO"
+          value = "true"
         }
       ]
       readonlyRootFilesystem = false
