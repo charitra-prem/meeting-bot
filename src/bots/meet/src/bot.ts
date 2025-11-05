@@ -413,9 +413,10 @@ export class MeetsBot extends Bot {
     const audioBitrate = "128k";
     const fps = "25";
 
-    // For segmented recording, use MPEGTS format with Opus audio (streaming-friendly)
+    // For segmented recording, use Matroska format with Opus audio
+    // Matroska (mkv) supports Opus codec and live segmentation
     const segmentDir = path.dirname(this.recordingPath);
-    const segmentPattern = path.join(segmentDir, 'segment_%03d.ts');
+    const segmentPattern = path.join(segmentDir, 'segment_%03d.mkv');
 
     return [
       '-v', 'verbose', // Verbose logging for debugging
@@ -438,9 +439,9 @@ export class MeetsBot extends Bot {
       // Segmented output - creates 60-second chunks for mid-meeting access
       "-f", "segment",
       "-segment_time", "60", // 60-second segments
-      "-segment_format", "mpegts", // Use MPEGTS format (supports live segmentation with Opus)
+      "-segment_format", "matroska", // Use Matroska format (supports live segmentation with Opus)
       "-reset_timestamps", "1",
-      "-y", segmentPattern, // Output segment pattern (*.ts files)
+      "-y", segmentPattern, // Output segment pattern (*.mkv files)
     ];
   }
 
