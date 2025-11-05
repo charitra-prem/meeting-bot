@@ -135,19 +135,14 @@ export function watchAndUploadSegments(
 ): () => void {
 
   const uploadedSegments = new Set<string>();
+  let previousSegment: string | null = null;
 
   console.log(`Starting segment watcher for directory: ${segmentDir}`);
 
-  const watcher = watch(segmentDir, async (eventType, filename) => {
-    if (!filename || !filename.endsWith('.mp4')) return;
+  const uploadSegment = async (filename: string) => {
     if (uploadedSegments.has(filename)) return;
 
     const segmentPath = path.join(segmentDir, filename);
-
-    console.log(`New segment detected: ${filename} (event: ${eventType})`);
-
-    // Wait a moment to ensure file is fully written
-    await new Promise(resolve => setTimeout(resolve, 2000));
 
     try {
       // Read segment file
@@ -159,6 +154,8 @@ export function watchAndUploadSegments(
 
       // Upload to S3 with predictable path
       const key = `recordings/${botId}/segment_${segmentNumber.toString().padStart(3, '0')}.mp4`;
+
+      console.log(`Uploading segment ${segmentNumber} (${(fileContent.length / 1024 / 1024).toFixed(2)} MB) to S3...`);
 
       await s3Client.send(new PutObjectCommand({
         Bucket: process.env.AWS_BUCKET_NAME!,
@@ -176,11 +173,34 @@ export function watchAndUploadSegments(
     } catch (error) {
       console.error(`Error uploading segment ${filename}:`, error);
     }
+  };
+
+  const watcher = watch(segmentDir, async (eventType, filename) => {
+    if (!filename || !filename.endsWith('.mp4')) return;
+
+    console.log(`New segment detected: ${filename} (event: ${eventType})`);
+
+    // When a new segment is created, upload the previous one (which is now complete)
+    if (previousSegment && !uploadedSegments.has(previousSegment)) {
+      console.log(`Uploading previous segment ${previousSegment} (current: ${filename})`);
+      await uploadSegment(previousSegment);
+    }
+
+    // Update previous segment
+    previousSegment = filename;
   });
 
-  // Return cleanup function
+  // Return cleanup function that uploads the final segment
   return () => {
     console.log('Stopping segment watcher');
     watcher.close();
+
+    // Upload the last segment if it exists
+    if (previousSegment && !uploadedSegments.has(previousSegment)) {
+      console.log(`Uploading final segment: ${previousSegment}`);
+      uploadSegment(previousSegment).catch(error =>
+        console.error('Error uploading final segment:', error)
+      );
+    }
   };
 }
