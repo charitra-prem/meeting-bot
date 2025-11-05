@@ -447,10 +447,10 @@ export class MeetsBot extends Bot {
 
   /**
    * Starts the recording of the call using ffmpeg.
-   * 
+   *
    * This function initializes an ffmpeg process to capture the screen and audio of the meeting.
    * It ensures that only one recording process is active at a time and logs the status of the recording.
-   * 
+   *
    * @returns {void}
    */
   async startRecording() {
@@ -458,18 +458,41 @@ export class MeetsBot extends Bot {
     console.log('Attempting to start the recording ... @', this.getRecordingPath());
     if (this.ffmpegProcess) return console.log('Recording already started.');
 
-    this.ffmpegProcess = spawn('ffmpeg', this.getFFmpegParams());
+    const ffmpegParams = this.getFFmpegParams();
+    console.log('FFmpeg command:', 'ffmpeg', ffmpegParams.join(' '));
+
+    this.ffmpegProcess = spawn('ffmpeg', ffmpegParams);
 
     console.log('Spawned a subprocess to record: pid=', this.ffmpegProcess.pid);
 
+    // Collect stderr output for error detection
+    let stderrBuffer = '';
+    const maxBufferSize = 10000; // Keep last 10KB of stderr
+
     // Report any data / errors (DEBUG, since it also prints that data is available).
     this.ffmpegProcess.stderr.on('data', (data) => {
-      // console.error(`ffmpeg: ${data}`);
+      const text = data.toString();
+      stderrBuffer += text;
+      if (stderrBuffer.length > maxBufferSize) {
+        stderrBuffer = stderrBuffer.slice(-maxBufferSize);
+      }
+
+      // Detect errors in ffmpeg output
+      if (text.toLowerCase().includes('error') ||
+          text.toLowerCase().includes('invalid') ||
+          text.toLowerCase().includes('failed') ||
+          text.toLowerCase().includes('cannot')) {
+        console.error(`ffmpeg ERROR detected: ${text.trim()}`);
+      }
 
       // Log that we got data, and the recording started.
       if (!this.startedRecording) {
-        console.log('Recording Started.');
-        this.startedRecording = true;
+        // Only mark as started if we see encoding progress indicators
+        if (text.includes('frame=') || text.includes('time=') || text.includes('Opening')) {
+          console.log('Recording Started - ffmpeg is encoding frames.');
+          this.startedRecording = true;
+          this.recordingStartedAt = Date.now();
+        }
       }
     });
 
@@ -485,8 +508,18 @@ export class MeetsBot extends Bot {
     }
 
     // Report when the process exits
-    this.ffmpegProcess.on('exit', (code) => {
-      console.log(`ffmpeg exited with code ${code}`);
+    this.ffmpegProcess.on('exit', (code, signal) => {
+      console.log(`ffmpeg exited with code ${code}${signal ? ` and signal ${signal}` : ''}`);
+      if (code !== 0 && code !== null) {
+        console.error('FFmpeg failed! Last stderr output:');
+        console.error(stderrBuffer.slice(-2000)); // Print last 2KB
+      }
+      this.ffmpegProcess = null;
+    });
+
+    // Catch spawn errors
+    this.ffmpegProcess.on('error', (error) => {
+      console.error('Failed to start ffmpeg process:', error);
       this.ffmpegProcess = null;
     });
 
@@ -603,29 +636,30 @@ export class MeetsBot extends Bot {
   }
 
   /**
-   * 
+   *
    * Meeting actions of the bot.
-   * 
+   *
    * This function performs the actions that the bot is supposed to do in the meeting.
    * It first waits for the people button to be visible, then clicks on it to open the people panel.
    * It then starts recording the meeting and sets up participant monitoring.
-   *  
+   *
    * Afterwards, It enters a simple loop that checks for end meeting conditions every X seconds.
    * Once detected it's done, it stops the recording and exits.
-   * 
+   *
    * @returns 0
    */
   async meetingActions() {
 
-    // Start Recording, Yes by default
-    console.log("Starting Recording");
-    this.startRecording();
-
-    // Report that we're now in the call and recording
+    // Report that we're now in the call
     await this.onEvent(EventCode.IN_CALL);
 
     console.log("Waiting for the 'Others might see you differently' popup...");
     await this.handleInfoPopup();
+
+    console.log("Waiting for meeting to stabilize before starting recording...");
+    // Wait for the meeting UI to fully render and audio/video streams to establish
+    // This is critical for ffmpeg to capture actual content
+    await this.page.waitForTimeout(3000);
 
     try {
       // UI patch: Find new people icon and click parent button
@@ -882,6 +916,27 @@ export class MeetsBot extends Bot {
 
       peopleObserver.observe(peopleList, { childList: true, subtree: true });
     });
+
+    // Start Recording AFTER participant monitoring is set up and meeting is stable
+    console.log("Starting Recording (with participants monitoring active)");
+    try {
+      await this.startRecording();
+
+      // Wait a bit to verify recording actually started
+      await this.page.waitForTimeout(2000);
+
+      if (!this.startedRecording) {
+        console.error("WARNING: Recording did not start properly - ffmpeg may have failed");
+        console.error("Check X11 display and PulseAudio are working");
+        // Take a screenshot for debugging
+        await this.screenshot('recording-failed.png');
+      } else {
+        console.log("Recording confirmed started successfully");
+      }
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      console.error("Continuing without recording...");
+    }
 
     // Loop -- check for end meeting conditions every second
     console.log("Waiting until a leave condition is fulfilled..");

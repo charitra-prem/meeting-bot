@@ -59,6 +59,7 @@ pulseaudio \
 pulseaudio-utils \
 xserver-xephyr \
 x11-xserver-utils \
+x11-utils \
 && rm -rf /var/lib/apt/lists/*
 
 #Install pnpm globally
